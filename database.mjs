@@ -18,7 +18,7 @@ let time_and_log = (f) => {
   const elapsed = process.hrtime(start)[1]/1000000;
   const message = result.message;
   delete result.message;
-  // delete result.index;
+  delete result.index;
   logger.info(message, _.assign(result, {elapsed}));
 } 
 
@@ -116,7 +116,9 @@ time_and_log(
 
 
 
-
+/* 
+  Processes approximately 500 lines/s
+*/
 const build_full_index = (data) => {
   const index = data.reduce((p,c,i) => {
     const unique_words = _.uniq(c.split(/\W/).map(w => w.toLowerCase())).filter(s => s);
@@ -139,6 +141,10 @@ function contains(big_string, little_string) {
   return exp.test(big_string);
 };
 
+const cp_index = build_full_index(big_database);
 time_and_log(
-  build_full_index.bind(this, big_database)
+  find_lines_containing.bind(this, big_database, search_term)
+);
+time_and_log(
+  find_lines_containing.bind(this, big_database, search_term, cp_index)
 );
