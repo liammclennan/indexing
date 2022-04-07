@@ -1,11 +1,6 @@
 import logger from './logger.mjs';
 import big_database from './data/index.mjs';
 
-const contains = (big_string, little_string) => {
-  const exp = new RegExp(`^.*\\b${little_string}\\b.*`, 'i');
-  return exp.test(big_string);
-};
-
 const search_term = process.argv[2]; // node database.mjs 'and nothing'
 
 const small_database = [
@@ -38,7 +33,9 @@ let find_lines_containing = (data, term) => {
   };
 };
 
-time_and_log(find_lines_containing.bind(this, small_database, search_term));
+time_and_log(
+  find_lines_containing.bind(this, small_database, search_term)
+);
 
 
 
@@ -65,7 +62,9 @@ find_lines_containing = (data, term) => {
   };
 };
 
-time_and_log(find_lines_containing.bind(this, big_database, search_term));
+time_and_log(
+  find_lines_containing.bind(this, big_database, search_term)
+);
 
 
 
@@ -100,4 +99,13 @@ const build_index_for = (term) => {
 
 const term_index = build_index_for(search_term);
 
-time_and_log(find_lines_containing.bind(this, big_database, search_term, term_index));
+time_and_log(
+  find_lines_containing.bind(this, big_database, search_term, term_index)
+);
+
+
+
+function contains(big_string, little_string) {
+  const exp = new RegExp(`^.*\\b${little_string}\\b.*`, 'i');
+  return exp.test(big_string);
+};
