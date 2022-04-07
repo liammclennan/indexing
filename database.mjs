@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 import logger from './logger.mjs';
 import big_database from './data/index.mjs';
 
@@ -13,10 +15,11 @@ const small_database = [
 let time_and_log = (f) => {
   const start = process.hrtime();
   const result = f();
-  const timing = process.hrtime(start);
+  const elapsed = process.hrtime(start)[1]/1000000;
   const message = result.message;
   delete result.message;
-  logger.info(message, result);
+  // delete result.index;
+  logger.info(message, _.assign(result, {elapsed}));
 } 
 
 let find_lines_containing = (data, term) => {
@@ -77,8 +80,8 @@ time_and_log(
 */
 find_lines_containing = (data, term, index) => {
   const start = process.hrtime();
-  const result = (index) 
-    ? index.map(i => data[i])
+  const result = (index && index[term]) 
+    ? index[term].map(i => data[i])
     : data.filter(line => contains(line, term));
   const timing = process.hrtime(start);
   return {
@@ -91,13 +94,15 @@ find_lines_containing = (data, term, index) => {
   };
 };
 
-const build_index_for = (term) => {
-  return big_database.reduce((p, c, i) => {
-    return contains(c, term) ? p.concat([i]) : p;
-  }, []);
+const build_index_for = (data, term) => {
+  return {
+    [term]: data.reduce((p, c, i) => {
+      return contains(c, term) ? p.concat([i]) : p;
+    }, [])
+  };
 };
 
-const term_index = build_index_for(search_term);
+const term_index = build_index_for(big_database, search_term);
 
 time_and_log(
   find_lines_containing.bind(this, big_database, search_term, term_index)
@@ -105,7 +110,35 @@ time_and_log(
 
 
 
+
+
+
+
+
+
+
+const build_full_index = (data) => {
+  const index = data.reduce((p,c,i) => {
+    const unique_words = _.uniq(c.split(/\W/).map(w => w.toLowerCase())).filter(s => s);
+    for (const word of unique_words) {
+      p = _.merge(p, { [word]: (p[word] || []).concat([i]) });
+    }
+    return p;
+  }, {});
+  
+  return {
+    message: "Built index with {Entries} entries for {Lines} lines.",
+    Lines: data.length,
+    Entries: Object.keys(index).length,
+    index
+  };
+};
+
 function contains(big_string, little_string) {
   const exp = new RegExp(`^.*\\b${little_string}\\b.*`, 'i');
   return exp.test(big_string);
 };
+
+time_and_log(
+  build_full_index.bind(this, big_database)
+);
