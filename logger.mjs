@@ -9,6 +9,9 @@ const logger = winston.createLogger({
   ),
   defaultMeta: { /* application: 'your-app-name' */ },
   transports: [
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    }),
     new SeqTransport({
       serverUrl: "http://localhost",
     //   apiKey: "your-api-key",
