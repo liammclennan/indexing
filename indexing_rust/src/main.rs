@@ -33,31 +33,86 @@ mod search {
         }
     }
 
-    mod indexing {
+    pub mod indexing {
         use regex::Regex;
         use std::collections::BTreeMap;
+        use std::slice::Chunks;
+        use rayon::prelude::*;
+
+        type Line = Vec<String>;
+        type Chunk = Vec<Line>;
+
+        pub fn tokenize(lines: &Vec<String>) -> Vec<Chunk> {
+            let splitter: Regex = Regex::new(r"\W").unwrap();
+            let tokenized: Vec<Line> = lines.iter()
+                .map(|line|
+                    splitter.split(line).map(|s| s.to_owned()).collect())
+                .collect();
+
+            let chunks_of_lines = lines.chunks(lines.len()/32);
+            chunks_of_lines.into_iter().map(|s| {
+                s.iter()
+                    .map(|line|
+                        splitter.split(line).map(|s| s.to_owned()).collect())
+                    .collect()
+            }).collect()
+        }
 
         pub fn build_btree_index_for(data: &Vec<String>) -> BTreeMap<String, Vec<usize>> {
-            let splitter: Regex = Regex::new(r"\W").unwrap();
-            let mut index: BTreeMap<String, Vec<usize>> = BTreeMap::new();
-            let mut i: usize = 0;
-            for line in data {
-                let words: Vec<&str> = splitter.split(line).collect();
-                for word in words {
-                    match index.get_mut(&word.to_lowercase()) {
-                        Some(lines) => { lines.push(i); },
-                        None => { index.insert((*word).to_lowercase(), vec![i]); }
-                    };
+            let tokens = tokenize(data);
+
+            let mut indexes: Vec<BTreeMap<String, Vec<usize>>> = tokens.par_iter().map(|chunk| {
+                let mut index: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+                let mut i: usize = 0;
+                for line in chunk {
+                    for word in line {
+                        match index.get_mut(&word.to_lowercase()) {
+                            Some(lines) => { lines.push(i); },
+                            None => { index.insert((*word).to_lowercase(), vec![i]); }
+                        };
+                    }
+                    i += 1;
                 }
-                i += 1;
+                index
+            }).collect();
+            if indexes.is_empty() {
+                BTreeMap::new()
+            } else {
+                let mut last = indexes.pop().unwrap();
+                while !indexes.is_empty() {
+                    last.extend(indexes.pop().unwrap());
+                }
+                last
             }
-            index
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::search;
+
+    #[test]
+    pub fn tokenize() {
+        let bible = include_str!("../data/bible.txt");
+        let lines: Vec<String> = bible.lines().map(|l| l.to_lowercase()).collect();
+        let tokenized = search::indexing::tokenize(&lines);
+    }
+
+    #[test]
+    pub fn chunky() {
+        let i = (0..25).collect::<Vec<_>>();
+
+        for chunk in i.chunks(10) {
+            println!("{:02?}", chunk);
+        }
+        let bible = include_str!("../data/bible.txt");
+        let lines: Vec<String> = bible.lines().map(|l| l.to_lowercase()).collect();
+        for chunk in lines.chunks(5).take(2) {
+            println!("{:?}\n\n", chunk);
+        }
+    }
+
     #[test]
     pub fn index_works() {
         let bible = include_str!("../data/bible.txt");
